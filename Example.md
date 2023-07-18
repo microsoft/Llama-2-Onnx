@@ -31,7 +31,7 @@ Use one of the above strings in the <chosen_submodule> placeholders below. You c
 
 ``` bash
 git clone https://github.com/microsoft/Llama-2-Onnx.git
-cd UploadTestTop
+cd Llama-2-Onnx
 git submodule init <chosen_submodule> 
 git submodule update
 python Example_ONNX_LlamaV2.py --ONNX_file <chosen_submodule>/ONNX/LlamaV2_<chosen_submodule>.onnx --embedding_file <chosen_submodule>/embeddings.pth --TokenizerPath tokenizer.model --prompt "What is the lightest element?"
