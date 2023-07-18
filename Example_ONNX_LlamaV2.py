@@ -111,7 +111,7 @@ def run_ONNX_LlamaV2(
                 "attn_mask": attn_mask,
                 "k_cache": k_cache[:, :, :pos],
                 "v_cache": v_cache[:, :, :pos],
-                "pos": pos,
+                "pos": pos.astype(np.int64),
             },
         )
         logits, k_out, v_out = results[:3]
