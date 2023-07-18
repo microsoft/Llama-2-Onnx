@@ -1,6 +1,6 @@
 **This is an optimized version of the Llama 2 model, available from Meta under the Llama Community License Agreement found on this repository. Microsoft permits you to use, modify, redistribute and create derivatives of Microsoft's contributions to the optimized version subject to the restrictions and disclaimers of warranty and liability in the Llama Community License agreement.**
 
-Llama 2 is a collection of pretrained and fine-tuned generative text models. To learn more about Llama 2, review the model card.
+Llama 2 is a collection of pretrained and fine-tuned generative text models. To learn more about Llama 2, review the [Llama 2 model card](https://github.com/microsoft/Llama-2-Onnx/blob/main/MODEL-CARD-META-LLAMA-2.md).
 
 
 In order to help developers innovate responsibly, Meta encourages you to review the [Responsible Use Guide](https://ai.meta.com/llama/responsible-use-guide/) for the Llama 2 models.
@@ -47,10 +47,10 @@ It is recommended that inputs/outputs are put on target device to avoid expensiv
 
 **What parameters to test with?** 
 
-Users can perform temperature and top-p sampling using the model’s output logits. Please refer to Meta’s guidance for the best parameters combination; an example is located [here.](https://github.com/facebookresearch/llama/blob/main/example.py)
+Users can perform temperature and top-p sampling using the model’s output logits. Please refer to Meta’s guidance for the best parameters combination; an example is located [here.](https://github.com/facebookresearch/llama/)
 
  
 
 **Is there an example on how to run this?**
 
-To run an example with this repository, please see Llama-2-Onnx/Example.md
+To run an example with this repository, please see [Llama-2-Onnx/Example.md](https://github.com/microsoft/Llama-2-Onnx/blob/main/Example.md)
