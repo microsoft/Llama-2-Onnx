@@ -1,4 +1,6 @@
-This file will help you get started with the LlamaV2 models using ONNX.
+# **Running Llama 2 With ONNX**
+
+This file will help you get started with the Llama 2 models using ONNX.
 
 Pre-requisites:
 * Python, pip
@@ -10,7 +12,7 @@ Dependencies:
 * numpy
 * sentencepiece
 
-''' bash
+``` bash
 pip install torch onnxruntime-gpu numpy sentencepiece
 ```
 
@@ -27,12 +29,10 @@ You can choose from:
 
 Use one of the above strings in the <chosen_submodule> placeholders below. You can initialze multiple submodules by repeating the init command with a different submodule name. 
 
-''' bash
+``` bash
 git clone https://github.com/microsoft/UploadTestTop.git
 cd UploadTestTop
 git submodule init <chosen_submodule> 
 git submodule update
 python Example_ONNX_LlamaV2.py --ONNX_file <chosen_submodule>/ONNX/LlamaV2_<chosen_submodule>.onnx --embedding_file <chosen_submodule>/embeddings.pth --TokenizerPath tokenizer.model --prompt "What is the lightest element?"
 ```
-
-
