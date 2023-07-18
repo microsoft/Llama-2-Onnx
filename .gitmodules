@@ -1,0 +1,24 @@
+[submodule "7B_Float16"]
+	path = 7B_Float16
+	url = https://github.com/microsoft/UploadTest716
+[submodule "7B_Float32"]
+	path = 7B_Float32
+	url = https://github.com/microsoft/UploadTest732
+[submodule "13B_Float16"]
+	path = 13B_Float16
+	url = https://github.com/microsoft/UploadTest1316
+[submodule "13B_Float32"]
+	path = 13B_Float32
+	url = https://github.com/microsoft/UploadTest1332
+[submodule "7B_FT_Float16"]
+	path = 7B_FT_Float16
+	url = https://github.com/microsoft/UploadTest7FT16
+[submodule "7B_FT_Float32"]
+	path = 7B_FT_Float32
+	url = https://github.com/microsoft/UploadTest7FT32
+[submodule "13B_FT_Float16"]
+	path = 13B_FT_Float16
+	url = https://github.com/microsoft/UploadTest13FT16
+[submodule "13B_FT_Float32"]
+	path = 13B_FT_Float32
+	url = https://github.com/microsoft/UploadTest13FT32
