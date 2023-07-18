@@ -30,7 +30,7 @@ You can choose from:
 Use one of the above strings in the <chosen_submodule> placeholders below. You can initialze multiple submodules by repeating the init command with a different submodule name. 
 
 ``` bash
-git clone https://github.com/microsoft/UploadTestTop.git
+git clone https://github.com/microsoft/Llama-2-Onnx.git
 cd UploadTestTop
 git submodule init <chosen_submodule> 
 git submodule update
