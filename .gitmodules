@@ -1,24 +1,24 @@
 [submodule "7B_float16"]
 	path = 7B_float16
-	url = https://github.com/microsoft/Llama-2-Onnx-7-16
+	url = ../Llama-2-Onnx-7-16
 [submodule "7B_float32"]
 	path = 7B_float32
-	url = https://github.com/microsoft/Llama-2-Onnx-7-32
+	url = ../Llama-2-Onnx-7-32
 [submodule "13B_float16"]
 	path = 13B_float16
-	url = https://github.com/microsoft/Llama-2-Onnx-13-16
+	url = ../Llama-2-Onnx-13-16
 [submodule "13B_float32"]
 	path = 13B_float32
-	url = https://github.com/microsoft/Llama-2-Onnx-13-32
+	url = ../Llama-2-Onnx-13-32
 [submodule "7B_FT_float16"]
 	path = 7B_FT_float16
-	url = https://github.com/microsoft/Llama-2-Onnx-7-FT-16
+	url = ../Llama-2-Onnx-7-FT-16
 [submodule "7B_FT_float32"]
 	path = 7B_FT_float32
-	url = https://github.com/microsoft/Llama-2-Onnx-7-FT-32
+	url = ../Llama-2-Onnx-7-FT-32
 [submodule "13B_FT_float16"]
 	path = 13B_FT_float16
-	url = https://github.com/microsoft/Llama-2-Onnx-13-FT-16
+	url = ../Llama-2-Onnx-13-FT-16
 [submodule "13B_FT_float32"]
 	path = 13B_FT_float32
-	url = https://github.com/microsoft/Llama-2-Onnx-13-FT-32
+	url = ../Llama-2-Onnx-13-FT-32
