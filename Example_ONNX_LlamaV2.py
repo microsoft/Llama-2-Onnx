@@ -58,7 +58,7 @@ def run_ONNX_LlamaV2(
     data_type_str = llm_session.get_inputs()[0].type
     if data_type_str == "tensor(float16)":
         data_type = np.float16
-    elif data_type_str == "tensor(float32)":
+    elif data_type_str == "tensor(float32)" or data_type_str == "tensor(float)":
         data_type = np.float32
     else:
         raise Exception(f"Unknown data type {data_type_str}")
