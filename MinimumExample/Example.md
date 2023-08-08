@@ -40,7 +40,7 @@ git submodule update
 The minimum example is a simple command line program that will complete some text with the chosen version of Llama 2. You can run it with the following command:
 
 ``` bash
-python MinimumExample/Example_ONNX_LlamaV2.py --ONNX_file <chosen_submodule>/ONNX/LlamaV2_<chosen_submodule>.onnx --embedding_file <chosen_submodule>/embeddings.pth --TokenizerPath tokenizer.model --prompt "What is the lightest element?"
+python MinimumExample/Example_ONNX_LlamaV2.py --onnx_file <chosen_submodule>/ONNX/LlamaV2_<chosen_submodule>.onnx --embedding_file <chosen_submodule>/embeddings.pth --tokenizer_path tokenizer.model --prompt "What is the lightest element?"
 ```
 
 Output:
