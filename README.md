@@ -7,6 +7,12 @@ The sub-modules that contain the ONNX files in this repository are access contro
 To get access permissions to the Llama 2 model, please fill out the [Llama 2 access request form](https://forms.microsoft.com/Pages/ResponsePage.aspx?id=v4j5cvGGr0GRqy180BHbR1sq8AbaR35DlqQqW8HAxY1UQlU4UThHTlFWVUUwMzBXV1gxWENRTjRHRi4u). If allowable, you will receive GitHub access in the next 48 hours, but usually much sooner.
 
 ## **Cloning This Repository And The Submodules**
+Before you begin, ensure you have Git LFS installed. Git LFS (Large File Storage) is used to handle large files efficiently.
+```bash
+curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+sudo apt-get install git-lfs
+git lfs install
+```
 Chose from the following sub-modules:
 * 7B_FT_float16
 * 7B_FT_float32
@@ -21,6 +27,12 @@ git clone https://github.com/microsoft/Llama-2-Onnx.git
 cd Llama-2-Onnx
 git submodule init <chosen_submodule> 
 git submodule update
+```
+After initializing the submodule, ensure you pull the large files using Git LFS:
+```bash
+cd <chosen_submodule>
+git lfs pull
+cd ..
 ```
 You can repeate the init command with a different submodule name to initialize multiple submodules. Be careful, the contained files are very large! (7B Float16 models are about 10GB)
 
