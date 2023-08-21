@@ -7,7 +7,7 @@ The sub-modules that contain the ONNX files in this repository are access contro
 To get access permissions to the Llama 2 model, please fill out the [Llama 2 access request form](https://forms.microsoft.com/Pages/ResponsePage.aspx?id=v4j5cvGGr0GRqy180BHbR1sq8AbaR35DlqQqW8HAxY1UQlU4UThHTlFWVUUwMzBXV1gxWENRTjRHRi4u). If allowable, you will receive GitHub access in the next 48 hours, but usually much sooner.
 
 ## **Cloning This Repository And The Submodules**
-Before you begin, ensure you have Git LFS installed. Git LFS (Large File Storage) is used to handle large files efficiently. You can find out how to install Git-LFS for your operating system at [https://git-lfs.com/](https://git-lfs.com/). 
+Before you begin, ensure you have Git LFS installed. Git LFS (Large File Storage) is used to handle large files efficiently. You can find out how to install Git LFS for your operating system at [https://git-lfs.com/](https://git-lfs.com/). 
 
 Next, you can choose which version of the Llama 2 model you would like to use by selecting the appropriate submodule.
 
