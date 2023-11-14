@@ -1,114 +1,71 @@
-# -*- coding:utf-8 -*-
-import os
-import logging
-import gradio as gr
+import argparse
 import gc
-from interface.hddr_llama_onnx_interface import LlamaOnnxInterface
-from interface.empty_stub_interface import EmptyStubInterface
-from ChatApp.app_modules.utils import (
-    reset_textbox,
-    transfer_input,
-    reset_state,
-    delete_last_conversation,
-    cancel_outputing,
-)
-from ChatApp.app_modules.presets import (
+import os
+from pathlib import Path
+
+import gradio as gr
+from app_modules.overwrites import postprocess
+from app_modules.presets import (
+    description,
+    description_top,
     small_and_beautiful_theme,
     title,
-    description_top,
-    description,
 )
-from ChatApp.app_modules.overwrites import postprocess
-
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] [%(filename)s:%(lineno)d] %(message)s",
+from app_modules.utils import (
+    cancel_outputing,
+    delete_last_conversation,
+    reset_state,
+    reset_textbox,
+    transfer_input,
 )
-
-# we can filter this dictionary at the start according to the actual available files on disk
-empty_stub_model_name = "_Empty Stub_"
+from interface.hddr_llama_onnx_interface import LlamaOnnxDmlInterface
+from interface.empty_stub_interface import EmptyStubInterface
+import logging
 
 top_directory = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
 tokenizer_path = os.path.join(top_directory, "tokenizer.model")
 
 available_models = {
-    "LLaMA 7B Float16": {
-        "onnx_file": os.path.join(
-            top_directory, "7B_float16", "ONNX", "LlamaV2_7B_float16.onnx"
-        ),
-        "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(top_directory, "7B_float16", "embeddings.pth"),
-    },
     "LLaMA 7B Chat Float16": {
         "onnx_file": os.path.join(
-            top_directory, "7B_FT_float16", "ONNX", "LlamaV2_7B_FT_float16.onnx"
+            top_directory,
+            "7B_FT_DML_OPT_float16",
+            "ONNX",
+            "decoder_model_merged",
+            "decoder_model_merged.onnx",
         ),
         "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(
-            top_directory, "7B_FT_float16", "embeddings.pth"
+        "sampling_onnx_file": os.path.join(
+            top_directory,
+            "7B_FT_DML_OPT_float16",
+            "ONNX",
+            "argmax_sampling",
+            "argmax_sampling.onnx",
         ),
     },
-    "LLaMA 13B Float16": {
+    "LLaMA 7B Float16": {
         "onnx_file": os.path.join(
-            top_directory, "13B_float16", "ONNX", "LlamaV2_13B_float16.onnx"
+            top_directory,
+            "7B_DML_OPT_float16",
+            "ONNX",
+            "decoder_model_merged",
+            "decoder_model_merged.onnx",
         ),
         "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(top_directory, "13B_float16", "embeddings.pth"),
-    },
-    "LLaMA 13B Chat Float16": {
-        "onnx_file": os.path.join(
-            top_directory, "13B_FT_float16", "ONNX", "LlamaV2_13B_FT_float16.onnx"
-        ),
-        "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(
-            top_directory, "13B_FT_float16", "embeddings.pth"
-        ),
-    },
-    "LLaMA 7B Float32": {
-        "onnx_file": os.path.join(
-            top_directory, "7B_float32", "ONNX", "LlamaV2_7B_float32.onnx"
-        ),
-        "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(top_directory, "7B_float32", "embeddings.pth"),
-    },
-    "LLaMA 7B Chat Float32": {
-        "onnx_file": os.path.join(
-            top_directory, "7B_FT_float32", "ONNX", "LlamaV2_7B_FT_float32.onnx"
-        ),
-        "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(
-            top_directory, "7B_FT_float32", "embeddings.pth"
-        ),
-    },
-    "LLaMA 13B Float32": {
-        "onnx_file": os.path.join(
-            top_directory, "13B_float32", "ONNX", "LlamaV2_13B_float32.onnx"
-        ),
-        "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(top_directory, "13B_float32", "embeddings.pth"),
-    },
-    "LLaMA 13B Chat Float32": {
-        "onnx_file": os.path.join(
-            top_directory, "13B_FT_float32", "ONNX", "LlamaV2_13B_FT_float32.onnx"
-        ),
-        "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(
-            top_directory, "13B_FT_float32", "embeddings.pth"
+        "sampling_onnx_file": os.path.join(
+            top_directory,
+            "7B_DML_OPT_float16",
+            "ONNX",
+            "argmax_sampling",
+            "argmax_sampling.onnx",
         ),
     },
 }
 
-
 interface = EmptyStubInterface()
 interface.initialize()
-
-# interface = None
-
-gr.Chatbot.postprocess = postprocess
-
-with open("ChatApp/assets/custom.css", "r", encoding="utf-8") as f:
-    custom_css = f.read()
+empty_stub_model_name = "_Empty Stub_"
 
 
 def change_model_listener(new_model_name):
@@ -129,173 +86,178 @@ def change_model_listener(new_model_name):
         interface.initialize()
     else:
         d = available_models[new_model_name]
-        interface = LlamaOnnxInterface(
+        interface = LlamaOnnxDmlInterface(
             onnx_file=d["onnx_file"],
+            sampling_onnx_file=d["sampling_onnx_file"],
             tokenizer_path=d["tokenizer_path"],
-            embedding_file=d["embedding_file"],
         )
         interface.initialize()
 
     return new_model_name
 
 
-def interface_predict(*args):
-    global interface
-    res = interface.predict(*args)
+gr.Chatbot.postprocess = postprocess
 
-    for x in res:
-        yield x
+with Path("ChatApp/assets/custom.css").open() as f:
+    custom_css = f.read()
+
+
+def interface_predict(*args):
+    res = interface.predict(*args)
+    yield from res
 
 
 def interface_retry(*args):
-    global interface
     res = interface.retry(*args)
-
-    for x in res:
-        yield x
+    yield from res
 
 
-with gr.Blocks(css=custom_css, theme=small_and_beautiful_theme) as demo:
-    history = gr.State([])
-    user_question = gr.State("")
-    with gr.Row():
-        gr.HTML(title)
-        status_display = gr.Markdown("Success", elem_id="status_display")
-    gr.Markdown(description_top)
+def launch_chat_app(expose_locally: bool = False):
+    with gr.Blocks(css=custom_css, theme=small_and_beautiful_theme) as demo:
+        history = gr.State([])
+        user_question = gr.State("")
+        with gr.Row():
+            gr.HTML(title)
+            status_display = gr.Markdown("Success", elem_id="status_display")
+        gr.Markdown(description_top)
 
-    with gr.Row():
-        with gr.Column(scale=5):
-            with gr.Row():
-                chatbot = gr.Chatbot(elem_id="chuanhu_chatbot", height=900)
-            with gr.Row():
-                with gr.Column(scale=12):
-                    user_input = gr.Textbox(show_label=False, placeholder="Enter text")
-                with gr.Column(min_width=70, scale=1):
-                    submit_button = gr.Button("Send")
-                with gr.Column(min_width=70, scale=1):
-                    cancel_button = gr.Button("Stop")
-            with gr.Row():
-                empty_button = gr.Button(
-                    "🧹 New Conversation",
+        with gr.Row():
+            with gr.Column(scale=5):
+                with gr.Row():
+                    chatbot = gr.Chatbot(elem_id="chuanhu_chatbot", height=900)
+                with gr.Row():
+                    with gr.Column(scale=12):
+                        user_input = gr.Textbox(
+                            show_label=False, placeholder="Enter text"
+                        )
+                    with gr.Column(min_width=70, scale=1):
+                        submit_button = gr.Button("Send")
+                    with gr.Column(min_width=70, scale=1):
+                        cancel_button = gr.Button("Stop")
+                with gr.Row():
+                    empty_button = gr.Button(
+                        "🧹 New Conversation",
+                    )
+                    retry_button = gr.Button("🔄 Regenerate")
+                    delete_last_button = gr.Button("🗑️ Remove Last Turn")
+            with gr.Column(), gr.Column(min_width=50, scale=1), gr.Tab(
+                label="Parameter Setting"
+            ):
+                gr.Markdown("# Model")
+                model_name = gr.Dropdown(
+                    choices=list(available_models.keys()),
+                    label="Model",
+                    show_label=False,  # default="Empty STUB",
+                    value=empty_stub_model_name,
                 )
-                retry_button = gr.Button("🔄 Regenerate")
-                delete_last_button = gr.Button("🗑️ Remove Last Turn")
-        with gr.Column():
-            with gr.Column(min_width=50, scale=1):
-                with gr.Tab(label="Parameter Setting"):
-                    gr.Markdown("# Model")
-                    model_name = gr.Dropdown(
-                        choices=[empty_stub_model_name] + list(available_models.keys()),
-                        label="Model",
-                        show_label=False,  # default="Empty STUB",
-                    )
-                    model_name.change(
-                        change_model_listener, inputs=[model_name], outputs=[model_name]
-                    )
+                model_name.change(
+                    change_model_listener, inputs=[model_name], outputs=[model_name]
+                )
 
-                    gr.Markdown("# Parameters")
-                    top_p = gr.Slider(
-                        minimum=-0,
-                        maximum=1.0,
-                        value=0.9,
-                        step=0.05,
-                        interactive=True,
-                        label="Top-p",
-                    )
-                    temperature = gr.Slider(
-                        minimum=0.1,
-                        maximum=2.0,
-                        value=0.6,
-                        step=0.1,
-                        interactive=True,
-                        label="Temperature",
-                    )
-                    max_length_tokens = gr.Slider(
-                        minimum=0,
-                        maximum=512,
-                        value=256,
-                        step=8,
-                        interactive=True,
-                        label="Max Generation Tokens",
-                    )
-                    max_context_length_tokens = gr.Slider(
-                        minimum=0,
-                        maximum=4096,
-                        value=2048,
-                        step=128,
-                        interactive=True,
-                        label="Max History Tokens",
-                    )
-    gr.Markdown(description)
+                max_length_tokens = gr.Slider(
+                    minimum=0,
+                    maximum=512,
+                    value=256,
+                    step=8,
+                    interactive=True,
+                    label="Max Generation Tokens",
+                )
+                max_context_length_tokens = gr.Slider(
+                    minimum=0,
+                    maximum=4096,
+                    value=2048,
+                    step=128,
+                    interactive=True,
+                    label="Max History Tokens",
+                )
+                token_printing_step = gr.Slider(
+                    minimum=1,
+                    maximum=10,
+                    value=4,
+                    step=1,
+                    interactive=True,
+                    label="Token Printing Step",
+                )
+        gr.Markdown(description)
 
-    predict_args = dict(
-        # fn=interface.predict,
-        fn=interface_predict,
-        inputs=[
-            user_question,
-            chatbot,
-            history,
-            top_p,
-            temperature,
-            max_length_tokens,
-            max_context_length_tokens,
-        ],
-        outputs=[chatbot, history, status_display],
-        show_progress=True,
-    )
-    retry_args = dict(
-        fn=interface_retry,
-        inputs=[
-            user_input,
-            chatbot,
-            history,
-            top_p,
-            temperature,
-            max_length_tokens,
-            max_context_length_tokens,
-        ],
-        outputs=[chatbot, history, status_display],
-        show_progress=True,
-    )
+        predict_args = {
+            "fn": interface_predict,
+            "inputs": [
+                user_question,
+                chatbot,
+                history,
+                max_length_tokens,
+                max_context_length_tokens,
+                token_printing_step,
+            ],
+            "outputs": [chatbot, history, status_display],
+            "show_progress": True,
+        }
+        retry_args = {
+            "fn": interface_retry,
+            "inputs": [
+                chatbot,
+                history,
+                max_length_tokens,
+                max_context_length_tokens,
+                token_printing_step,
+            ],
+            "outputs": [chatbot, history, status_display],
+            "show_progress": True,
+        }
 
-    reset_args = dict(fn=reset_textbox, inputs=[], outputs=[user_input, status_display])
+        reset_args = {
+            "fn": reset_textbox,
+            "inputs": [],
+            "outputs": [user_input, status_display],
+        }
 
-    # Chatbot
-    transfer_input_args = dict(
-        fn=transfer_input,
-        inputs=[user_input],
-        outputs=[user_question, user_input, submit_button],
-        show_progress=True,
-    )
+        # Chatbot
+        transfer_input_args = {
+            "fn": transfer_input,
+            "inputs": [user_input],
+            "outputs": [user_question, user_input, submit_button],
+            "show_progress": True,
+        }
 
-    predict_event1 = user_input.submit(**transfer_input_args).then(**predict_args)
+        predict_event1 = user_input.submit(**transfer_input_args).then(**predict_args)
 
-    predict_event2 = submit_button.click(**transfer_input_args).then(**predict_args)
+        predict_event2 = submit_button.click(**transfer_input_args).then(**predict_args)
 
-    empty_button.click(
-        reset_state,
-        outputs=[chatbot, history, status_display],
-        show_progress=True,
-    )
-    empty_button.click(**reset_args)
+        empty_button.click(
+            reset_state,
+            outputs=[chatbot, history, status_display],
+            show_progress=True,
+        )
+        empty_button.click(**reset_args)
 
-    predict_event3 = retry_button.click(**retry_args)
+        predict_event3 = retry_button.click(**retry_args)
 
-    delete_last_button.click(
-        delete_last_conversation,
-        [chatbot, history],
-        [chatbot, history, status_display],
-        show_progress=True,
-    )
-    cancel_button.click(
-        cancel_outputing,
-        [],
-        [status_display],
-        cancels=[predict_event1, predict_event2, predict_event3],
-    )
+        delete_last_button.click(
+            delete_last_conversation,
+            [chatbot, history],
+            [chatbot, history, status_display],
+            show_progress=True,
+        )
+        cancel_button.click(
+            cancel_outputing,
+            [],
+            [status_display],
+            cancels=[predict_event1, predict_event2, predict_event3],
+        )
 
-    demo.load(change_model_listener, inputs=None, outputs=model_name)
+        demo.load(change_model_listener, inputs=[model_name], outputs=model_name)
 
-demo.title = "Llama Chat UI"
+    demo.title = "Llama Chat UI"
 
-demo.queue(concurrency_count=1).launch()
+    if expose_locally:
+        demo.queue(concurrency_count=1).launch(server_name="0.0.0.0", server_port=7860)
+    else:
+        demo.queue(concurrency_count=1).launch(server_port=7860)
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--expose_locally", action="store_true")
+    args = parser.parse_args()
+    launch_chat_app(args.expose_locally)

@@ -38,101 +38,145 @@ class Tokenizer:
 def run_onnx_llamav2(
     prompt: str,
     onnx_file: str,
-    embedding_file: str,
     tokenizer_path: str,
     max_gen_len: int = 256,
 ) -> str:
     # Create the ONNX session
     options = onnxruntime.SessionOptions()
+    options.add_free_dimension_override_by_name("seq_len_increment", 1)
     llm_session = onnxruntime.InferenceSession(
         onnx_file,
         sess_options=options,
         providers=[
-            "DmlExecutionProvider",
+            (
+                "DmlExecutionProvider",
+                {
+                    "enable_dynamic_graph_fusion": True,
+                    "device_id": 0,
+                },
+            ),
             "CUDAExecutionProvider",
             "CPUExecutionProvider",
         ],
     )
 
     # get the data type used by the model
-    data_type_str = llm_session.get_inputs()[0].type
+    onnx_inputs = llm_session.get_inputs()
+    data_type_str = onnx_inputs[3].type
     if data_type_str == "tensor(float16)":
         data_type = np.float16
-    elif data_type_str == "tensor(float32)" or data_type_str == "tensor(float)":
+    elif data_type_str == "tensor(float32)":
         data_type = np.float32
     else:
         raise Exception(f"Unknown data type {data_type_str}")
 
     # Get the relevant shapes so we can create the inputs
     for inputs_meta in llm_session._inputs_meta:
-        if inputs_meta.name == "x":
-            x_shape = inputs_meta.shape
-        elif inputs_meta.name == "attn_mask":
-            attn_mask_shape = inputs_meta.shape
-        elif inputs_meta.name == "k_cache":
-            k_cache_shape = inputs_meta.shape
+        if inputs_meta.name == "cache.0.key":
+            # get the data type of the model.
+            if inputs_meta.type == "tensor(float16)":
+                data_type = np.float16
+            elif inputs_meta.type == "tensor(float32)":
+                data_type = np.float32
+            else:
+                raise Exception(f"Unknown data type {data_type_str}")
 
-    hidden_size = x_shape[2]
-    max_seq_len = attn_mask_shape[1]
-    n_layers = k_cache_shape[1]
-    n_heads = k_cache_shape[3]
+            cache_shape = inputs_meta.shape
+
+    n_layers = 32
+    n_heads = cache_shape[1]
+    head_dim = cache_shape[3]
 
     # Initialize the tokenizer and produce the initial tokens.
     tokenizer = Tokenizer(model_path=tokenizer_path)
     tokens = tokenizer.encode(prompt, bos=True, eos=False)
-
-    # create the embedding layer.
-    embedding_layer = torch.nn.Embedding(tokenizer.n_words, hidden_size)
-    embedding_layer.load_state_dict(torch.load(embedding_file))
-    embedding_layer.eval()
-
-    # Create the embeddings of the initial prompt.
-    x = embedding_layer(torch.tensor(tokens)).detach().cpu().numpy()
-    x = np.expand_dims(x, axis=0).astype(data_type)
-
-    # Create the attention mask.
-    attn_mask = -10000.0 * torch.triu(
-        torch.ones(attn_mask_shape), diagonal=1
-    ).cpu().detach().numpy().astype(data_type)
+    tokens = np.asarray(tokens, dtype=np.int64)
+    tokens = np.expand_dims(tokens, axis=0)
 
     # Create the K and V caches.
-    head_dim = int(hidden_size / n_heads)
-    k_cache = np.zeros([1, n_layers, max_seq_len, n_heads, head_dim], dtype=data_type)
-    v_cache = np.zeros([1, n_layers, max_seq_len, n_heads, head_dim], dtype=data_type)
+    k_caches = [None] * n_layers
+    v_caches = [None] * n_layers
+
+    use_cache_branch = np.zeros([1], dtype=np.bool_)
+
+    seq_len = tokens.shape[1]
+
+    tokens_increment = np.array(seq_len, dtype=np.int64).reshape((1, 1))
+    position_ids_increment = np.array(0, dtype=np.int64).reshape((1, 1))
+
+    padding = 512
 
     # Iteratively generate tokens.
-    pos = np.array(0)
     output_tokens = []
     for idx in range(max_gen_len):
+        # Setup the caches
+        if idx == 0 or seq_len % padding == 0:
+            padded_seq_len = padding * (seq_len // padding + 1)
+
+            # Create the attention mask, which contains 1's for values that should stay intact, and 0's for values
+            # that should get added to -10000
+            attn_mask = np.pad(
+                np.ones((1, seq_len)), ((0, 0), (padded_seq_len - seq_len, 0))
+            ).astype(np.int32)
+
+            for layer_idx in range(n_layers):
+                if idx == 0:
+                    k_caches[layer_idx] = np.zeros(
+                        (1, n_heads, padded_seq_len, head_dim), dtype=data_type
+                    )
+                    v_caches[layer_idx] = np.zeros(
+                        (1, n_heads, padded_seq_len, head_dim), dtype=data_type
+                    )
+                else:
+                    k_caches[layer_idx] = np.pad(
+                        k_caches[layer_idx].numpy(),
+                        ((0, 0), (0, 0), (padding, 0), (0, 0)),
+                    )
+                    v_caches[layer_idx] = np.pad(
+                        v_caches[layer_idx].numpy(),
+                        ((0, 0), (0, 0), (padding, 0), (0, 0)),
+                    )
+
+        if idx == 0:
+            position_ids = np.arange(seq_len, dtype=np.int64).reshape((1, seq_len))
+        else:
+            position_ids_increment = np.array(seq_len, dtype=np.int64).reshape((1, 1))
+
+        input_tensors = {
+            "tokens": tokens,
+            "position_ids": position_ids,
+            "attn_mask": attn_mask,
+            "tokens_increment": tokens_increment,
+            "position_ids_increment": position_ids_increment,
+            "use_cache_branch": use_cache_branch,
+        }
+        for i in range(n_layers):
+            input_tensors[f"cache.{i}.key"] = k_caches[i]
+            input_tensors[f"cache.{i}.value"] = v_caches[i]
+
         results = llm_session.run(
             None,
-            {
-                "x": x,
-                "attn_mask": attn_mask,
-                "k_cache": k_cache[:, :, :pos],
-                "v_cache": v_cache[:, :, :pos],
-                "pos": pos.astype(np.int64),
-            },
+            input_tensors,
         )
-        logits, k_out, v_out = results[:3]
+        logits, attn_mask_out = results[:2]
+        for i in range(n_layers):
+            k_caches[i] = results[2 + 2 * i]
+            v_caches[i] = results[3 + 2 * i]
 
         # Decide the next token using your preferred sampling strategy.
         next_token = np.argmax(logits, axis=-1).astype(np.int64)
         output_tokens.extend(next_token)
 
-        # Stop if/when we get an ENDOFTEXT token before reaching maximum sequence length
-        if next_token == tokenizer.eos_id:
+        if output_tokens[-1] == tokenizer.eos_id:
             break
 
-        # Update the cache
-        seq_len = x.shape[1]
-        k_cache[:, :, pos : pos + seq_len] = k_out
-        v_cache[:, :, pos : pos + seq_len] = v_out
+        if idx == 0:
+            use_cache_branch = np.ones([1], dtype=np.bool_)
 
-        # Update pos and x ready for the next round.
-        pos = np.array(int(pos) + seq_len, dtype=np.int64)
-        x = embedding_layer(torch.tensor(next_token)).unsqueeze(0)
-        x = x.cpu().detach().numpy().astype(data_type)
+        attn_mask_out, attn_mask = attn_mask, attn_mask_out
+
+        tokens_increment = np.expand_dims(next_token, axis=0)
+        seq_len += 1
 
     output_str = tokenizer.decode(torch.tensor(output_tokens).tolist())
 
@@ -140,6 +184,12 @@ def run_onnx_llamav2(
 
 
 if __name__ == "__main__":
+    print(
+        "Disclaimer: This simple example will not be performant, best performance is achieved with iobinding. \
+Please see the ChatApp example for a more complete example. This example is meant to show how the \
+model works with the minimum amount of code."
+    )
+
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--prompt",
@@ -148,11 +198,6 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--onnx_file",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
-        "--embedding_file",
         type=str,
         required=True,
     )
@@ -166,7 +211,6 @@ if __name__ == "__main__":
     response = run_onnx_llamav2(
         args.prompt,
         args.onnx_file,
-        args.embedding_file,
         args.tokenizer_path,
         args.max_gen_len,
     )
