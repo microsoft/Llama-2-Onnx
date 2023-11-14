@@ -38,7 +38,6 @@ class Tokenizer:
 def run_onnx_llamav2(
     prompt: str,
     onnx_file: str,
-    embedding_file: str,
     tokenizer_path: str,
     max_gen_len: int = 256,
 ) -> str:
@@ -55,69 +54,65 @@ def run_onnx_llamav2(
     )
 
     # get the data type used by the model
-    data_type_str = llm_session.get_inputs()[0].type
+    onnx_inputs = llm_session.get_inputs()
+    data_type_str = onnx_inputs[3].type
     if data_type_str == "tensor(float16)":
         data_type = np.float16
-    elif data_type_str == "tensor(float32)" or data_type_str == "tensor(float)":
+    elif data_type_str == "tensor(float32)":
         data_type = np.float32
     else:
         raise Exception(f"Unknown data type {data_type_str}")
 
     # Get the relevant shapes so we can create the inputs
     for inputs_meta in llm_session._inputs_meta:
-        if inputs_meta.name == "x":
-            x_shape = inputs_meta.shape
-        elif inputs_meta.name == "attn_mask":
+        if inputs_meta.name == "attention_mask":
             attn_mask_shape = inputs_meta.shape
-        elif inputs_meta.name == "k_cache":
-            k_cache_shape = inputs_meta.shape
+        elif inputs_meta.name == "past_key_values.0.key":
+            cache_shape = inputs_meta.shape
 
-    hidden_size = x_shape[2]
-    max_seq_len = attn_mask_shape[1]
-    n_layers = k_cache_shape[1]
-    n_heads = k_cache_shape[3]
+    n_layers = 32
+    n_heads = cache_shape[1]
+    head_size = cache_shape[3]
+    hidden_size = head_size * n_heads
 
     # Initialize the tokenizer and produce the initial tokens.
     tokenizer = Tokenizer(model_path=tokenizer_path)
     tokens = tokenizer.encode(prompt, bos=True, eos=False)
-
-    # create the embedding layer.
-    embedding_layer = torch.nn.Embedding(tokenizer.n_words, hidden_size)
-    embedding_layer.load_state_dict(torch.load(embedding_file))
-    embedding_layer.eval()
-
-    # Create the embeddings of the initial prompt.
-    x = embedding_layer(torch.tensor(tokens)).detach().cpu().numpy()
-    x = np.expand_dims(x, axis=0).astype(data_type)
-
-    # Create the attention mask.
-    attn_mask = -10000.0 * torch.triu(
-        torch.ones(attn_mask_shape), diagonal=1
-    ).cpu().detach().numpy().astype(data_type)
+    tokens = np.array(tokens, dtype=np.int64).reshape((1, -1))
 
     # Create the K and V caches.
     head_dim = int(hidden_size / n_heads)
-    k_cache = np.zeros([1, n_layers, max_seq_len, n_heads, head_dim], dtype=data_type)
-    v_cache = np.zeros([1, n_layers, max_seq_len, n_heads, head_dim], dtype=data_type)
+    kv_cache = [np.zeros((1, n_heads, 0, head_dim), dtype=data_type)] * 2 * n_layers
 
     # Iteratively generate tokens.
     pos = np.array(0)
     output_tokens = []
     for idx in range(max_gen_len):
+        # position_ids is a tensor counting from pos to pos + seq_len
+        position_ids = np.arange(pos, pos + tokens.shape[1], dtype=np.int64).reshape(
+            (1, -1)
+        )
+        # Create the attention mask.
+        attn_mask = np.ones((1, tokens.shape[1]), dtype=np.int64)
+        inputs = {
+            "input_ids": tokens,
+            "attention_mask": attn_mask,
+            "position_ids": position_ids,
+        }
+        for i in range(0, n_layers):
+            inputs[f"past_key_values.{i}.key"] = kv_cache[2 * i]
+            inputs[f"past_key_values.{i}.value"] = kv_cache[2 * i + 1]
         results = llm_session.run(
             None,
-            {
-                "x": x,
-                "attn_mask": attn_mask,
-                "k_cache": k_cache[:, :, :pos],
-                "v_cache": v_cache[:, :, :pos],
-                "pos": pos.astype(np.int64),
-            },
+            inputs,
         )
-        logits, k_out, v_out = results[:3]
+        logits = results[0]
+
+        for i in range(0, n_layers * 2):
+            kv_cache[i] = results[i + 1]
 
         # Decide the next token using your preferred sampling strategy.
-        next_token = np.argmax(logits, axis=-1).astype(np.int64)
+        next_token = np.argmax(logits[:, -1, :], axis=-1).astype(np.int64)
         output_tokens.extend(next_token)
 
         # Stop if/when we get an ENDOFTEXT token before reaching maximum sequence length
@@ -125,14 +120,11 @@ def run_onnx_llamav2(
             break
 
         # Update the cache
-        seq_len = x.shape[1]
-        k_cache[:, :, pos : pos + seq_len] = k_out
-        v_cache[:, :, pos : pos + seq_len] = v_out
+        seq_len = tokens.shape[1]
 
         # Update pos and x ready for the next round.
         pos = np.array(int(pos) + seq_len, dtype=np.int64)
-        x = embedding_layer(torch.tensor(next_token)).unsqueeze(0)
-        x = x.cpu().detach().numpy().astype(data_type)
+        tokens = next_token.reshape((1, -1))
 
     output_str = tokenizer.decode(torch.tensor(output_tokens).tolist())
 
@@ -152,11 +144,6 @@ if __name__ == "__main__":
         required=True,
     )
     parser.add_argument(
-        "--embedding_file",
-        type=str,
-        required=True,
-    )
-    parser.add_argument(
         "--tokenizer_path",
         type=str,
         required=True,
@@ -166,7 +153,6 @@ if __name__ == "__main__":
     response = run_onnx_llamav2(
         args.prompt,
         args.onnx_file,
-        args.embedding_file,
         args.tokenizer_path,
         args.max_gen_len,
     )

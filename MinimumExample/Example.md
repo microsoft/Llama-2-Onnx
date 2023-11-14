@@ -18,14 +18,10 @@ pip install torch onnxruntime-gpu numpy sentencepiece
 ## **Cloning The Repository and Sub-Modules**
 To avoid requiring the end user to clone all versions of the model, each version is contained inside a git submodule. 
 You can choose from: 
-* 7B_FT_float16
-* 7B_FT_float32
-* 7B_float16
-* 7B_float32
-* 13B_FT_float16
-* 13B_FT_float32
-* 13B_float16
-* 13B_float32
+* 7B_CHAT_HF_CUDA_OPT_float16
+* 7B_CHAT_HF_CUDA_OPT_float32
+* 7B_HF_CUDA_OPT_float16
+* 7B_HF_CUDA_OPT_float32
 
 Use one of the above strings in the <chosen_submodule> placeholders below. You can initialize multiple submodules by repeating the init command with a different submodule name. 
 
@@ -40,7 +36,7 @@ git submodule update
 The minimum example is a simple command line program that will complete some text with the chosen version of Llama 2. You can run it with the following command:
 
 ``` bash
-python MinimumExample/Example_ONNX_LlamaV2.py --onnx_file <chosen_submodule>/ONNX/LlamaV2_<chosen_submodule>.onnx --embedding_file <chosen_submodule>/embeddings.pth --tokenizer_path tokenizer.model --prompt "What is the lightest element?"
+python MinimumExample/Example_ONNX_LlamaV2.py --ONNX_file <chosen_submodule>/ONNX/<chosen_submodule>.onnx --TokenizerPath tokenizer.model --prompt "What is the lightest element?"
 ```
 
 Output:

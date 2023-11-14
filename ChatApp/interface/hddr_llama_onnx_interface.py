@@ -15,6 +15,12 @@ from ChatApp.app_modules.utils import (
     shared_state,
 )
 
+pt_to_np = {
+    "torch.int64": np.int64,
+    "torch.float32": np.float32,
+    "torch.float16": np.float16,
+}
+
 
 class Tokenizer:
     def __init__(self, model_path: str):
@@ -44,11 +50,10 @@ class Tokenizer:
 
 
 class LlamaOnnxInterface(BaseLLMInterface):
-    def __init__(self, onnx_file="", embedding_file="", tokenizer_path=""):
+    def __init__(self, onnx_file="", tokenizer_path=""):
         super().__init__()
 
         self.onnx_file = onnx_file
-        self.embedding_file = embedding_file
         self.tokenizer_path = tokenizer_path
 
         self.total_count = 0
@@ -57,73 +62,56 @@ class LlamaOnnxInterface(BaseLLMInterface):
         # Create the ONNX session
 
         logging.info(f"Creating ONNX session for [{self.onnx_file}]")
+        # Create the ONNX session
         options = onnxruntime.SessionOptions()
         self.llm_session = onnxruntime.InferenceSession(
             self.onnx_file,
             sess_options=options,
             providers=[
-                "DmlExecutionProvider",
-                "CUDAExecutionProvider",
+                # "DmlExecutionProvider",
+                # "CUDAExecutionProvider",
                 "CPUExecutionProvider",
             ],
         )
 
+        # get the chosen device
+        chosen_provider = self.llm_session.get_providers()[0]
+        logging.info(f"Using device {chosen_provider}")
+        if chosen_provider == "DmlExecutionProvider":
+            self.binding_device = "dml"
+            self.device = torch.device("dml")
+        elif chosen_provider == "CUDAExecutionProvider":
+            self.binding_device = "cuda"
+            self.device = torch.device("cuda")
+        elif chosen_provider == "CPUExecutionProvider":
+            self.binding_device = "cpu"
+            self.device = torch.device("cpu")
+
         # get the data type used by the model
-        data_type_str = self.llm_session.get_inputs()[0].type
+        onnx_inputs = self.llm_session.get_inputs()
+        data_type_str = onnx_inputs[3].type
         if data_type_str == "tensor(float16)":
             self.data_type = np.float16
+            self.torch_dtype = torch.float16
         elif data_type_str == "tensor(float32)":
             self.data_type = np.float32
+            self.torch_dtype = torch.float32
         else:
             raise Exception(f"Unknown data type {data_type_str}")
 
-        logging.info(f"Detected Data Type [{self.data_type}]")
-
         # Get the relevant shapes so we can create the inputs
         for inputs_meta in self.llm_session._inputs_meta:
-            if inputs_meta.name == "x":
-                x_shape = inputs_meta.shape
-            elif inputs_meta.name == "attn_mask":
-                attn_mask_shape = inputs_meta.shape
-            elif inputs_meta.name == "k_cache":
-                k_cache_shape = inputs_meta.shape
+            if inputs_meta.name == "past_key_values.0.key":
+                cache_shape = inputs_meta.shape
 
-        self.hidden_size = x_shape[2]
-        self.max_seq_len = attn_mask_shape[1]
-        self.n_layers = k_cache_shape[1]
-        self.n_heads = k_cache_shape[3]
+        self.n_layers = 32
+        self.n_heads = cache_shape[1]
+        self.head_size = cache_shape[3]
+        self.hidden_size = self.head_size * self.n_heads
 
         # Initialize the tokenizer and produce the initial tokens.
         self.tokenizer = Tokenizer(model_path=self.tokenizer_path)
-
-        # create the embedding layer.
-        logging.info(
-            f"Creating the Embedding Layer. Size [{self.tokenizer.n_words}, {self.hidden_size}]"
-        )
-        self.embeddingLayer = torch.nn.Embedding(
-            self.tokenizer.n_words, self.hidden_size
-        )
-
-        # rg hack - dont have the embeddings.pth file - taking it from the original llama model
-        d = torch.load(self.embedding_file)
-        self.embeddingLayer.load_state_dict(d)
-        self.embeddingLayer.eval()
-
-        # Create the attention mask.
-        self.attn_mask = -10000.0 * torch.triu(
-            torch.ones(attn_mask_shape), diagonal=1
-        ).cpu().detach().numpy().astype(self.data_type)
-
-        # Create the K and V caches.
-        self.head_dim = int(self.hidden_size / self.n_heads)
-        self.k_cache = np.zeros(
-            [1, self.n_layers, self.max_seq_len, self.n_heads, self.head_dim],
-            dtype=self.data_type,
-        )
-        self.v_cache = np.zeros(
-            [1, self.n_layers, self.max_seq_len, self.n_heads, self.head_dim],
-            dtype=self.data_type,
-        )
+        self.n_words = self.tokenizer.n_words
 
     def shutdown(self):
         pass
@@ -209,6 +197,142 @@ short answers are usually best"
 
         return next_token
 
+    def get_initial_inputs_and_outputs(
+        self, input_ids, device, use_fp16, use_buffer_share
+    ):
+        torch_dtype = torch.float16 if use_fp16 else torch.float32
+
+        attention_mask = torch.ones(input_ids.shape, device=device, dtype=torch.int64)
+        position_ids = attention_mask.long().cumsum(-1) - 1
+        position_ids.masked_fill_(attention_mask == 0, 1)
+
+        inputs = {
+            "input_ids": input_ids.contiguous(),
+            "attention_mask": attention_mask.contiguous(),
+            "position_ids": position_ids.contiguous(),
+        }
+
+        batch_size, sequence_length = input_ids.shape
+        max_sequence_length = 2048
+        num_heads, head_size = 32, 128
+        for i in range(32):
+            past_key = torch.zeros(
+                batch_size,
+                num_heads,
+                max_sequence_length if use_buffer_share else 0,
+                head_size,
+                device=device,
+                dtype=torch_dtype,
+            )
+            past_value = torch.zeros(
+                batch_size,
+                num_heads,
+                max_sequence_length if use_buffer_share else 0,
+                head_size,
+                device=device,
+                dtype=torch_dtype,
+            )
+            inputs.update(
+                {
+                    f"past_key_values.{i}.key": past_key.contiguous(),
+                    f"past_key_values.{i}.value": past_value.contiguous(),
+                }
+            )
+
+        logits = torch.zeros(
+            batch_size, sequence_length, 32000, device=device, dtype=torch_dtype
+        )
+        outputs = {"logits": logits.contiguous()}
+        if not use_buffer_share:
+            for i in range(32):
+                present_key = torch.zeros(
+                    batch_size,
+                    num_heads,
+                    sequence_length,
+                    head_size,
+                    device=device,
+                    dtype=torch_dtype,
+                )
+                present_value = torch.zeros(
+                    batch_size,
+                    num_heads,
+                    sequence_length,
+                    head_size,
+                    device=device,
+                    dtype=torch_dtype,
+                )
+                outputs.update(
+                    {
+                        f"present.{i}.key": present_key.contiguous(),
+                        f"present.{i}.value": present_value.contiguous(),
+                    }
+                )
+
+        return inputs, outputs
+
+    def apply_io_binding(self, model, inputs, outputs, use_fp16, use_buffer_share):
+        # Check that all model inputs will be provided
+        model_inputs = set(
+            map(lambda model_input: model_input.name, model.get_inputs())
+        )
+        user_inputs = set(inputs.keys())
+        missing_inputs = model_inputs - user_inputs
+        if len(missing_inputs):
+            print(f"The following model inputs are missing: {missing_inputs}")
+            raise Exception(
+                "There are missing inputs to the model. Please add them and try again."
+            )
+
+        # Remove unnecessary inputs from model inputs
+        unnecessary_inputs = user_inputs - model_inputs
+        if len(unnecessary_inputs):
+            for unnecessary_input in unnecessary_inputs:
+                print(
+                    f"Removing unnecessary input '{unnecessary_input}' from user provided inputs"
+                )
+                del inputs[unnecessary_input]
+
+        # Bind inputs/outputs to IO binding
+        io_binding = model.io_binding()
+        device = None
+
+        for k, v in inputs.items():
+            io_binding.bind_input(
+                name=k,
+                device_type=v.device.type,
+                device_id=0 if v.device.type == "cpu" else v.device.index,
+                element_type=pt_to_np[repr(v.dtype)],
+                shape=tuple(v.shape),
+                buffer_ptr=v.data_ptr(),
+            )
+            device = v.device
+
+        for output in model.get_outputs():
+            name = output.name
+            if use_buffer_share and "present" in name:
+                # Bind KV cache outputs to KV cache inputs
+                v = inputs[name.replace("present", "past_key_values")]
+                io_binding.bind_output(
+                    name=name,
+                    device_type=v.device.type,
+                    device_id=v.device.index,
+                    element_type=np.float16,
+                    shape=tuple(v.shape),
+                    buffer_ptr=v.data_ptr(),
+                )
+            else:
+                v = outputs[name]
+                io_binding.bind_output(
+                    name=name,
+                    device_type=device.type,
+                    device_id=0 if device.type == "cpu" else device.index,
+                    element_type=(np.float16 if use_fp16 else np.float32),
+                    shape=tuple(v.shape),
+                    buffer_ptr=v.data_ptr(),
+                )
+
+        return io_binding
+
     def greedy_search(
         self,
         input_ids,
@@ -220,63 +344,101 @@ short answers are usually best"
         top_p: float = 1.0,
         top_k: int = 25,
     ):
+        use_buffer_share = False
         generated_tokens = []
-        pos = np.array(0)
+        pos = 0
 
-        x = (
-            self.embeddingLayer(torch.tensor(input_ids))
-            .detach()
-            .cpu()
-            .numpy()
-            .astype(self.data_type)
+        # Get model and its initial inputs/outputs
+        inputs, outputs = self.get_initial_inputs_and_outputs(
+            input_ids, self.device, True, use_buffer_share
         )
 
         for i in range(max_length):
-            results = self.llm_session.run(
-                None,
-                {
-                    "x": x,
-                    "attn_mask": self.attn_mask,
-                    "k_cache": self.k_cache[:, :, :pos],
-                    "v_cache": self.v_cache[:, :, :pos],
-                    "pos": pos.astype(np.int64),
-                },
+            io_binding = self.apply_io_binding(
+                model, inputs, outputs, True, use_buffer_share
             )
-            logits, k_out, v_out = results[:3]
 
-            next_token = self.sample_logits(logits, "top_p", top_p, temperature)
+            io_binding.synchronize_inputs()
+            self.llm_session.run_with_iobinding(io_binding)
+            io_binding.synchronize_outputs()
+
+            # Sample with argmax (greedy search)
+            if outputs["logits"].shape[1] > 1:
+                prompt_end_indices = inputs["attention_mask"].sum(1) - 1
+                idxs = (
+                    prompt_end_indices.unsqueeze(dim=1)
+                    .repeat(1, self.n_words)
+                    .view(1, 1, self.n_words)
+                )
+                next_token_logits = torch.gather(outputs["logits"], 1, idxs).squeeze()
+            else:
+                next_token_logits = outputs["logits"][:, -1, :]
+
+            logits_np = next_token_logits.cpu().numpy()
+            if len(logits_np.shape) < 2:
+                logits_np = logits_np.reshape(1, -1)
+            next_token = self.sample_logits(logits_np, "top_p", top_p, temperature)
             next_token = next_token.reshape(1, -1)
+            generated_tokens.append(next_token.item())
+            next_token = torch.tensor(next_token, device=self.device, dtype=torch.int64)
 
-            # Stop if/when we get an ENDOFTEXT token before reaching maximum sequence length
-            if next_token[0] == tokenizer.eos_id:
-                del logits
-                gc.collect()
-                return
+            # Return early if all batch entries have reached EOS token id
+            if next_token == tokenizer.eos_id:
+                break
 
-            input_ids = torch.cat((input_ids, torch.tensor(next_token)), dim=-1)
-
-            generated_tokens.append(next_token[0].item())
-            text = tokenizer.decode(generated_tokens)
-
-            seq_len = x.shape[1]
-            self.k_cache[:, :, pos : pos + seq_len] = k_out
-            self.v_cache[:, :, pos : pos + seq_len] = v_out
-            pos = np.array(int(pos) + seq_len)
-
-            x = (
-                self.embeddingLayer(torch.tensor(next_token))
-                .unsqueeze(0)
-                .reshape([1, 1, self.hidden_size])
-                .cpu()
-                .detach()
-                .numpy()
-                .astype(self.data_type)
+            # Update inputs for next inference run
+            inputs["input_ids"] = next_token.reshape(1, 1)
+            inputs["position_ids"] = (
+                torch.max(inputs["position_ids"], dim=1)[0].reshape(1, 1) + 1
             )
+            inputs["attention_mask"] = torch.cat(
+                [
+                    inputs["attention_mask"],
+                    torch.ones(1, 1, device=self.device, dtype=torch.int64),
+                ],
+                1,
+            )
+
+            # Set logits to zeros for next inference run and re-use memory buffer
+            if outputs["logits"].shape[1] != 1:
+                outputs["logits"] = outputs["logits"][:, :1, :].contiguous()
+            outputs["logits"].zero_()
+
+            if not use_buffer_share:
+                for i in range(self.n_layers):
+                    inputs[f"past_key_values.{i}.key"] = outputs[f"present.{i}.key"]
+                    inputs[f"past_key_values.{i}.value"] = outputs[f"present.{i}.value"]
+
+                new_sequence_length = inputs["attention_mask"].shape[1]
+                for i in range(self.n_layers):
+                    present_key = torch.zeros(
+                        1,
+                        self.n_heads,
+                        new_sequence_length,
+                        self.head_size,
+                        device=self.device,
+                        dtype=self.torch_dtype,
+                    )
+                    present_value = torch.zeros(
+                        1,
+                        self.n_heads,
+                        new_sequence_length,
+                        self.head_size,
+                        device=self.device,
+                        dtype=self.torch_dtype,
+                    )
+                    outputs.update(
+                        {
+                            f"present.{i}.key": present_key.contiguous(),
+                            f"present.{i}.value": present_value.contiguous(),
+                        }
+                    )
+
+            text = tokenizer.decode(generated_tokens)
 
             yield text
 
             if any([x in text for x in stop_words]):
-                del logits
                 gc.collect()
                 return
 
@@ -314,16 +476,6 @@ short answers are usually best"
         # global total_count
         self.total_count += 1
         print(self.total_count)
-
-        self.head_dim = int(self.hidden_size / self.n_heads)
-        self.k_cache = np.zeros(
-            [1, self.n_layers, self.max_seq_len, self.n_heads, self.head_dim],
-            dtype=self.data_type,
-        )
-        self.v_cache = np.zeros(
-            [1, self.n_layers, self.max_seq_len, self.n_heads, self.head_dim],
-            dtype=self.data_type,
-        )
 
         x = input_ids
 

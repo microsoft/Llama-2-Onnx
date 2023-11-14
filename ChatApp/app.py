@@ -33,69 +33,29 @@ top_directory = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 tokenizer_path = os.path.join(top_directory, "tokenizer.model")
 
 available_models = {
-    "LLaMA 7B Float16": {
+    "LLaMA 7B HF Float16": {
         "onnx_file": os.path.join(
-            top_directory, "7B_float16", "ONNX", "LlamaV2_7B_float16.onnx"
+            top_directory, "7B_HF_CUDA_OPT_float16", "ONNX", "7B_HF_CUDA_OPT_float16.onnx"
         ),
         "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(top_directory, "7B_float16", "embeddings.pth"),
     },
-    "LLaMA 7B Chat Float16": {
+    "LLaMA 7B HF Float32": {
         "onnx_file": os.path.join(
-            top_directory, "7B_FT_float16", "ONNX", "LlamaV2_7B_FT_float16.onnx"
+            top_directory, "7B_HF_CUDA_OPT_float32", "ONNX", "7B_HF_CUDA_OPT_float32.onnx"
         ),
         "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(
-            top_directory, "7B_FT_float16", "embeddings.pth"
-        ),
     },
-    "LLaMA 13B Float16": {
+    "LLaMA 7B Chat HF Float16": {
         "onnx_file": os.path.join(
-            top_directory, "13B_float16", "ONNX", "LlamaV2_13B_float16.onnx"
+            top_directory, "7B_CHAT_HF_CUDA_OPT_float16", "ONNX", "7B_CHAT_HF_CUDA_OPT_float16.onnx"
         ),
         "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(top_directory, "13B_float16", "embeddings.pth"),
     },
-    "LLaMA 13B Chat Float16": {
+    "LLaMA 7B Chat HF Float32": {
         "onnx_file": os.path.join(
-            top_directory, "13B_FT_float16", "ONNX", "LlamaV2_13B_FT_float16.onnx"
+            top_directory, "7B_CHAT_HF_CUDA_OPT_float32", "ONNX", "7B_CHAT_HF_CUDA_OPT_float32.onnx"
         ),
         "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(
-            top_directory, "13B_FT_float16", "embeddings.pth"
-        ),
-    },
-    "LLaMA 7B Float32": {
-        "onnx_file": os.path.join(
-            top_directory, "7B_float32", "ONNX", "LlamaV2_7B_float32.onnx"
-        ),
-        "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(top_directory, "7B_float32", "embeddings.pth"),
-    },
-    "LLaMA 7B Chat Float32": {
-        "onnx_file": os.path.join(
-            top_directory, "7B_FT_float32", "ONNX", "LlamaV2_7B_FT_float32.onnx"
-        ),
-        "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(
-            top_directory, "7B_FT_float32", "embeddings.pth"
-        ),
-    },
-    "LLaMA 13B Float32": {
-        "onnx_file": os.path.join(
-            top_directory, "13B_float32", "ONNX", "LlamaV2_13B_float32.onnx"
-        ),
-        "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(top_directory, "13B_float32", "embeddings.pth"),
-    },
-    "LLaMA 13B Chat Float32": {
-        "onnx_file": os.path.join(
-            top_directory, "13B_FT_float32", "ONNX", "LlamaV2_13B_FT_float32.onnx"
-        ),
-        "tokenizer_path": tokenizer_path,
-        "embedding_file": os.path.join(
-            top_directory, "13B_FT_float32", "embeddings.pth"
-        ),
     },
 }
 
@@ -132,7 +92,6 @@ def change_model_listener(new_model_name):
         interface = LlamaOnnxInterface(
             onnx_file=d["onnx_file"],
             tokenizer_path=d["tokenizer_path"],
-            embedding_file=d["embedding_file"],
         )
         interface.initialize()
 
