@@ -38,24 +38,42 @@ available_models = {
             top_directory, "7B_HF_CUDA_OPT_float16", "ONNX", "7B_HF_CUDA_OPT_float16.onnx"
         ),
         "tokenizer_path": tokenizer_path,
+        "is_GQA": False,
+    },
+    "LLaMA 7B GQA HF Float16": {
+        "onnx_file": os.path.join(
+            top_directory, "7B_HF_CUDA_OPT_float16", "ONNX_GQA", "7B_HF_CUDA_OPT_GQA_float16.onnx"
+        ),
+        "tokenizer_path": tokenizer_path,
+        "is_GQA": True,
     },
     "LLaMA 7B HF Float32": {
         "onnx_file": os.path.join(
             top_directory, "7B_HF_CUDA_OPT_float32", "ONNX", "7B_HF_CUDA_OPT_float32.onnx"
         ),
         "tokenizer_path": tokenizer_path,
+        "is_GQA": False,
     },
     "LLaMA 7B Chat HF Float16": {
         "onnx_file": os.path.join(
             top_directory, "7B_CHAT_HF_CUDA_OPT_float16", "ONNX", "7B_CHAT_HF_CUDA_OPT_float16.onnx"
         ),
         "tokenizer_path": tokenizer_path,
+        "is_GQA": False,
+    },
+    "LLaMA 7B Chat GQA HF Float16": {
+        "onnx_file": os.path.join(
+            top_directory, "7B_CHAT_HF_CUDA_OPT_float16", "ONNX_GQA", "7B_CHAT_HF_CUDA_OPT_GQA_float16.onnx"
+        ),
+        "tokenizer_path": tokenizer_path,
+        "is_GQA": True,
     },
     "LLaMA 7B Chat HF Float32": {
         "onnx_file": os.path.join(
             top_directory, "7B_CHAT_HF_CUDA_OPT_float32", "ONNX", "7B_CHAT_HF_CUDA_OPT_float32.onnx"
         ),
         "tokenizer_path": tokenizer_path,
+        "is_GQA": False,
     },
 }
 
@@ -92,6 +110,7 @@ def change_model_listener(new_model_name):
         interface = LlamaOnnxInterface(
             onnx_file=d["onnx_file"],
             tokenizer_path=d["tokenizer_path"],
+            is_GQA=d["is_GQA"],
         )
         interface.initialize()
 
