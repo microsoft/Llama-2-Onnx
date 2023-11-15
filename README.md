@@ -12,6 +12,9 @@ Chose from the following sub-modules:
 * 7B_CHAT_HF_CUDA_OPT_float32
 * 7B_HF_CUDA_OPT_float16
 * 7B_HF_CUDA_OPT_float32
+* 13B_CHAT_HF_CUDA_OPT_float16
+* 13B_HF_CUDA_OPT_float16
+
 
 ``` bash
 git clone https://github.com/microsoft/Llama-2-Onnx.git

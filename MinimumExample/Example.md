@@ -22,6 +22,8 @@ You can choose from:
 * 7B_CHAT_HF_CUDA_OPT_float32
 * 7B_HF_CUDA_OPT_float16
 * 7B_HF_CUDA_OPT_float32
+* 13B_CHAT_HF_CUDA_OPT_float16
+* 13B_HF_CUDA_OPT_float16
 
 Use one of the above strings in the <chosen_submodule> placeholders below. You can initialize multiple submodules by repeating the init command with a different submodule name. 
 
