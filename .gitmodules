@@ -10,3 +10,9 @@
 [submodule "7B_HF_CUDA_OPT_float32"]
 	path = 7B_HF_CUDA_OPT_float32
 	url = https://github.com/microsoft/Llama-2-Onnx-7-CUDA_CPU_OPT-32
+[submodule "13B_CHAT_HF_CUDA_OPT_float16"]
+	path = 13B_CHAT_HF_CUDA_OPT_float16
+	url = https://github.com/microsoft/Llama-2-Onnx-13-CHAT_CUDA_CPU_OPT-16
+[submodule "13B_HF_CUDA_OPT_float16"]
+	path = 13B_HF_CUDA_OPT_float16
+	url = https://github.com/microsoft/Llama-2-Onnx-13-CUDA_CPU_OPT-16
