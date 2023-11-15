@@ -75,6 +75,34 @@ available_models = {
         "tokenizer_path": tokenizer_path,
         "is_GQA": False,
     },
+    "LLaMA 13B Chat HF Float16": {
+        "onnx_file": os.path.join(
+            top_directory, "13B_CHAT_HF_CUDA_OPT_float16", "ONNX", "13B_CHAT_HF_CUDA_OPT_float16.onnx"
+        ),
+        "tokenizer_path": tokenizer_path,
+        "is_GQA": False,
+    },
+    "LLaMA 13B Chat GQA HF Float16": {
+        "onnx_file": os.path.join(
+            top_directory, "13B_CHAT_HF_CUDA_OPT_float16", "ONNX_GQA", "13B_CHAT_HF_CUDA_OPT_GQA_float16.onnx"
+        ),
+        "tokenizer_path": tokenizer_path,
+        "is_GQA": True,
+    },
+    "LLaMA 13B HF Float16": {
+        "onnx_file": os.path.join(
+            top_directory, "13B_HF_CUDA_OPT_float16", "ONNX", "13B_HF_CUDA_OPT_float16.onnx"
+        ),
+        "tokenizer_path": tokenizer_path,
+        "is_GQA": False,
+    },
+    "LLaMA 13B GQA HF Float16": {
+        "onnx_file": os.path.join(
+            top_directory, "13B_HF_CUDA_OPT_float16", "ONNX_GQA", "13B_HF_CUDA_OPT_GQA_float16.onnx"
+        ),
+        "tokenizer_path": tokenizer_path,
+        "is_GQA": True,
+    },
 }
 
 
