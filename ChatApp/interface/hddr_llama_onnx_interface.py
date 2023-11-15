@@ -50,11 +50,12 @@ class Tokenizer:
 
 
 class LlamaOnnxInterface(BaseLLMInterface):
-    def __init__(self, onnx_file="", tokenizer_path=""):
+    def __init__(self, onnx_file="", is_GQA=False, tokenizer_path=""):
         super().__init__()
 
         self.onnx_file = onnx_file
         self.tokenizer_path = tokenizer_path
+        self.is_GQA = is_GQA
 
         self.total_count = 0
 
@@ -68,8 +69,8 @@ class LlamaOnnxInterface(BaseLLMInterface):
             self.onnx_file,
             sess_options=options,
             providers=[
-                # "DmlExecutionProvider",
-                # "CUDAExecutionProvider",
+                "CUDAExecutionProvider",
+                "DmlExecutionProvider",
                 "CPUExecutionProvider",
             ],
         )
@@ -344,7 +345,7 @@ short answers are usually best"
         top_p: float = 1.0,
         top_k: int = 25,
     ):
-        use_buffer_share = False
+        use_buffer_share = self.is_GQA
         generated_tokens = []
         pos = 0
 
