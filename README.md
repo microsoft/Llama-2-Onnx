@@ -6,8 +6,13 @@
 The sub-modules that contain the ONNX files in this repository are access controlled.
 To get access permissions to the Llama 2 model, please fill out the [Llama 2 ONNX sign up page](https://github.com/llama2-onnx/signup). If allowable, you will receive GitHub access in the next 48 hours, but usually much sooner.
 
-# **This Branch Hosts Versions Optimized For DirectML**
-The submodules that are made available in this branch have been specifically optimized for the DirectML (DML) ONNX provider. They can work with other providers, but consider the submodules available in other branches depending on your use case.
+# **DirectML support for Llama 2**
+DirectML is cross-hardware execution provider for the ONNX Runtime. ONNX models running on DirectML can be optimized further with Olive, a powerful optimization tool. For more, see
+[(https://aka.ms/directml_llama2](https://aka.ms/directml_llama2)
+
+The model in the 7B_FT_DML_OPT_float16 submodule has already been optimized by Olive for DirectML. To see how this Olive optimization pass works, check out [https://github.com/microsoft/Olive/tree/main/examples/directml/llama_v2](https://github.com/microsoft/Olive/tree/main/examples/directml/llama_v2).
+
+The model in the 7B_DML_OPT_float16 submodule will also run fast on DirectML. It only has the basic Llama 2 weights that can be used to finetune on a specific domain.
 
 ## **Cloning This Repository And The Submodules**
 Before you begin, ensure you have Git LFS installed. Git LFS (Large File Storage) is used to handle large files efficiently. You can find out how to install Git LFS for your operating system at [https://git-lfs.com/](https://git-lfs.com/). 
