@@ -8,7 +8,7 @@ To get access permissions to the Llama 2 model, please fill out the [Llama 2 ONN
 
 # **DirectML support for Llama 2**
 DirectML is cross-hardware execution provider for the ONNX Runtime. ONNX models running on DirectML can be optimized further with Olive, a powerful optimization tool. For more, see
-[(https://aka.ms/directml_llama2](https://aka.ms/directml_llama2)
+[https://aka.ms/directml_llama2](https://aka.ms/directml_llama2)
 
 The model in the 7B_FT_DML_OPT_float16 submodule has already been optimized by Olive for DirectML. To see how this Olive optimization pass works, check out [https://github.com/microsoft/Olive/tree/main/examples/directml/llama_v2](https://github.com/microsoft/Olive/tree/main/examples/directml/llama_v2).
 
