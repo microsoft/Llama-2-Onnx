@@ -6,6 +6,8 @@
 The sub-modules that contain the ONNX files in this repository are access controlled.
 To get access permissions to the Llama 2 model, please fill out the [Llama 2 ONNX sign up page](https://github.com/llama2-onnx/signup). If allowable, you will receive GitHub access in the next 48 hours, but usually much sooner.
 
+**For the DML optimized models in this branch, access to the model sub-modules is in progress. ETA is end of November 2023. You can produce the ONNX assests yourself using [this sample in the Olive repository](https://github.com/microsoft/Olive/tree/main/examples/directml/llama_v2)**
+
 # **This Branch Hosts Versions Optimized For DirectML**
 The submodules that are made available in this branch have been specifically optimized for the DirectML (DML) ONNX provider. They can work with other providers, but consider the submodules available in other branches depending on your use case.
 
@@ -18,6 +20,7 @@ Next, you can choose which version of the Llama 2 model you would like to use by
 ``` bash
 git clone https://github.com/microsoft/Llama-2-Onnx.git
 cd Llama-2-Onnx
+SEE ETA FOR SUBMODULES ABOVE
 git submodule init <chosen_submodule> 
 git submodule update
 ```
