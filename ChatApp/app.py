@@ -298,4 +298,5 @@ with gr.Blocks(css=custom_css, theme=small_and_beautiful_theme) as demo:
 
 demo.title = "Llama Chat UI"
 
-demo.queue(concurrency_count=1).launch()
+# The parameter `concurrency_count` is deprecated and has no effect (will be removed in a future version). 
+demo.queue(default_concurrency_limit=1).launch()
