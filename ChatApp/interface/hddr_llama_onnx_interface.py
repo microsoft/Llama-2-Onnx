@@ -224,7 +224,7 @@ short answers are usually best"
         pos = np.array(0)
 
         x = (
-            self.embeddingLayer(torch.tensor(input_ids))
+            self.embeddingLayer(input_ids.clone().detach())
             .detach()
             .cpu()
             .numpy()
@@ -342,9 +342,8 @@ short answers are usually best"
                 if "[|AI|]" in x:
                     x = x[: x.index("[|AI|]")].strip()
                 x = x.strip()
-                a, b = [[y[0], convert_to_markdown(y[1])] for y in history] + [
-                    [text, convert_to_markdown(x)]
-                ], history + [[text, x]]
+                history.append([text, x])
+                a, b = [[y[0], convert_to_markdown(y[1])] for y in history], history
                 yield a, b, "Generating..."
             if shared_state.interrupted:
                 shared_state.recover()
