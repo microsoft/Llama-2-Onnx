@@ -23,8 +23,10 @@ class EmptyStubInterface:
     ):
         logging.info("hi there")
         logging.info("-" * 100)
-        # yield chatbot,history,"Empty context."
-        yield [[text, "No Model Found"]], [], "No Model Found"
+
+        history.append([text, f"[Empty Model] You typed: {text}"])
+        yield history, history, "No Model Found"
+        # yield [[text, "No Model Found"]], [], "No Model Found"
 
     def retry(
         self,
