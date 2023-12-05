@@ -6,7 +6,7 @@
 The sub-modules that contain the ONNX files in this repository are access controlled.
 To get access permissions to the Llama 2 model, please fill out the [Llama 2 access request form](https://forms.microsoft.com/Pages/ResponsePage.aspx?id=v4j5cvGGr0GRqy180BHbR1sq8AbaR35DlqQqW8HAxY1UQlU4UThHTlFWVUUwMzBXV1gxWENRTjRHRi4u). If allowable, you will receive GitHub access in the next 48 hours, but usually much sooner.
 
-**For the CUDA/CPU optimized models in this branch, access to the model sub-modules is in progress. ETA is end of November 2023. You can produce the models yourself using the instructions found in the [onnxruntime repository](https://github.com/microsoft/onnxruntime/blob/main/onnxruntime/python/tools/transformers/models/llama/README.md), or those found in this [ipython notebook](https://github.com/microsoft/onnxruntime-inference-examples/blob/main/python/models/llama2/LLaMA-2%20E2E%20Notebook.ipynb)**
+**For the CUDA/CPU optimized models in this branch, access to the model sub-modules is in progress. You can produce the models yourself using the instructions found in the [onnxruntime repository](https://github.com/microsoft/onnxruntime/blob/main/onnxruntime/python/tools/transformers/models/llama/README.md), or those found in this [ipython notebook](https://github.com/microsoft/onnxruntime-inference-examples/blob/main/python/models/llama2/LLaMA-2%20E2E%20Notebook.ipynb)**
 
 ## **Cloning This Repository And The Submodules**
 Chose from the following sub-modules:
